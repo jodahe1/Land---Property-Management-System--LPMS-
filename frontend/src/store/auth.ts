@@ -24,7 +24,6 @@ type SignupPayload = {
   email: string;
   phoneNumber: string;
   name: string;
-  role: UserRole;
   password: string;
 };
 

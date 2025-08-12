@@ -2,7 +2,7 @@ import { Link } from "react-router-dom";
 
 const Landing = () => {
   return (
-    <main className="relative overflow-hidden">
+    <main className="relative overflow-hidden bg-red-500">
       <section className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 pt-16 pb-24">
         <div className="grid lg:grid-cols-2 gap-12 items-center">
           <div>

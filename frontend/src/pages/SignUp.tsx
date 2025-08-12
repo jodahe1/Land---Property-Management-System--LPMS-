@@ -11,13 +11,12 @@ const SignUp = () => {
     email: "",
     phoneNumber: "",
     name: "",
-    role: "public" as const,
     password: "",
   });
   const [formError, setFormError] = useState<string | null>(null);
 
   const onChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
+    e: React.ChangeEvent<HTMLInputElement>
   ) => {
     const { name, value } = e.target;
     setForm((prev) => ({ ...prev, [name]: value }));
@@ -26,13 +25,13 @@ const SignUp = () => {
   const onSubmit = async (e: FormEvent) => {
     e.preventDefault();
     setFormError(null);
-    const { citizenId, email, phoneNumber, name, role, password } = form;
-    if (!citizenId || !email || !phoneNumber || !name || !role || !password) {
+    const { citizenId, email, phoneNumber, name, password } = form;
+    if (!citizenId || !email || !phoneNumber || !name || !password) {
       setFormError("All fields are required");
       return;
     }
     try {
-      await signup({ citizenId, email, phoneNumber, name, role, password });
+      await signup({ citizenId, email, phoneNumber, name, password });
       navigate("/welcome", { replace: true });
     } catch (err: any) {
       // error already set in store
@@ -99,20 +98,7 @@ const SignUp = () => {
             placeholder="John Doe"
           />
         </div>
-        <div className="sm:col-span-1">
-          <label className="block text-sm font-medium text-gray-700">Role</label>
-          <select
-            name="role"
-            value={form.role}
-            onChange={onChange}
-            className="mt-1 w-full rounded-md border-gray-300 focus:border-emerald-600 focus:ring-emerald-600"
-          >
-            <option value="public">Public</option>
-            <option value="owner">Owner</option>
-            <option value="admin">Admin</option>
-          </select>
-        </div>
-        <div className="sm:col-span-1">
+        <div className="sm:col-span-2">
           <label className="block text-sm font-medium text-gray-700">Password</label>
           <input
             name="password"

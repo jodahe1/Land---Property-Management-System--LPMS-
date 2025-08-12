@@ -3,11 +3,11 @@ import bcrypt from "bcrypt";
 import { createTokenAndSetCookie } from "../utils/createTokenAndSetCookie.js";
 
 export const signup = async (req, res) => {
-  const { citizenId, email, phoneNumber, name, role, password } = req.body;
+  const { citizenId, email, phoneNumber, name, password } = req.body;
 
   try {
     // Check if all fields are present
-    if (!citizenId || !email || !phoneNumber || !name || !role || !password) {
+    if (!citizenId || !email || !phoneNumber || !name || !password) {
       return res.status(400).json({
         message: "All fields are required",
       });
@@ -33,7 +33,6 @@ export const signup = async (req, res) => {
       email,
       phoneNumber,
       name,
-      role,
       password: hashedPswd,
     });
 
