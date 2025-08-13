@@ -1,5 +1,5 @@
 import { Land } from "../models/land.model.js";
-
+import { Dispute } from "../models/dispute.model.js";
 export const getMyLand = async (req, res) => {
   try {
     const userId = req.user._id;
@@ -68,13 +68,66 @@ export const addLand = async (req, res) => {
 };
 
 export const addDispute = async (req, res) => {
-  console.log("first");
-};
+  try {
+    const { fileUrl, parcelId, landOwnerCitizenId, raisedByUserCitizenId } =
+      req.body;
 
-export const cancelTransfer = async (req, res) => {
-  console.log("first");
+    // Basic validation
+    if (
+      !fileUrl ||
+      !parcelId ||
+      !landOwnerCitizenId ||
+      !raisedByUserCitizenId
+    ) {
+      return res.status(400).json({ message: "All fields are required" });
+    }
+
+    if (typeof parcelId !== "string" || parcelId.trim().length === 0) {
+      return res.status(400).json({ message: "Invalid parcelId" });
+    }
+
+    if (
+      typeof landOwnerCitizenId !== "string" ||
+      landOwnerCitizenId.trim().length === 0
+    ) {
+      return res.status(400).json({ message: "Invalid landOwnerCitizenId" });
+    }
+
+    if (
+      typeof raisedByUserCitizenId !== "string" ||
+      raisedByUserCitizenId.trim().length === 0
+    ) {
+      return res.status(400).json({ message: "Invalid raisedByUserCitizenId" });
+    }
+
+    // Create new dispute
+    const newDispute = new Dispute({
+      fileUrl: fileUrl.trim(),
+      parcelId: parcelId.trim(),
+      landOwnerCitizenId: landOwnerCitizenId.trim(),
+      raisedByUserCitizenId: raisedByUserCitizenId.trim(),
+    });
+
+    const dispute = await newDispute.save();
+
+    res.status(201).json({ message: "Dispute added successfully", dispute });
+  } catch (error) {
+    console.error("Error Adding Dispute:", error);
+    res.status(500).json({ message: "Error Adding Dispute" });
+  }
 };
 
 export const addToTransfer = async (req, res) => {
+  try {
+
+    const user=req.user;
+    
+  } catch (error) {
+    console.error("Error Adding Land To Transfer:", error);
+    res.status(500).json({ message: "Error Adding Land To Transfer" });
+  }
+};
+
+export const cancelTransfer = async (req, res) => {
   console.log("first");
 };
