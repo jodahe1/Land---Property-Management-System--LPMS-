@@ -20,8 +20,12 @@ const disputeSchema = new mongoose.Schema(
     },
     status: {
       type: String,
-      enum: ["waiting", "solved"],
+      enum: ["waiting", "solved", "Dropped"],
       default: "waiting",
+    },
+    adminApproved: {
+      type: String, // This will store admin's ID
+      default: null,
     },
     deleted_at: {
       type: Date, // null means it's still active

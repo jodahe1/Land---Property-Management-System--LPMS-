@@ -7,6 +7,7 @@ import {
   addDispute,
   cancelTransfer,
   addToTransfer,
+  MyDispute,
 } from "../controllers/owner.controller.js";
 
 const router = express.Router();
@@ -15,8 +16,10 @@ router.get("/myland", authenticate, authorizeRole("owner"), getMyLand);
 router.post("/addland", authenticate, authorizeRole("owner"), addLand);
 
 router.post("/addDispute", authenticate, authorizeRole("owner"), addDispute);
+
+router.post("/MyDispute", authenticate, authorizeRole("owner"), MyDispute);
 router.put(
-  "/removeDispute",
+  "/removeDispute:id",
   authenticate,
   authorizeRole("owner"),
   removeDispute
