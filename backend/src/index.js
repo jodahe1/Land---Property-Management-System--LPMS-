@@ -3,6 +3,8 @@ import dotenv from "dotenv";
 import { dbConnect } from "./config/dbconnect.js";
 import router from "./routes/auth.routes.js";
 import cookieParser from "cookie-parser";
+import ownerRoutes from "./routes/owner.routes.js"
+
 
 dotenv.config();
 
@@ -11,7 +13,7 @@ const app = express();
 app.use(express.json());
 app.use(cookieParser());
 app.use("/api/auth", router);
-
+app.use("/api/owner",ownerRoutes)
 const Port = process.env.Port || 3000;
 
 app.listen(Port, () => {
