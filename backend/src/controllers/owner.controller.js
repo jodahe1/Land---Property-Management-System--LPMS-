@@ -149,14 +149,14 @@ export const removeDispute = async (req, res) => {
   }
 };
 
-
-
 export const MyDispute = async (req, res) => {
   try {
-    const citizenId = req.user?.citizenId; 
+    const citizenId = req.user?.citizenId;
 
     if (!citizenId) {
-      return res.status(400).json({ message: "Citizen ID not found in user data" });
+      return res
+        .status(400)
+        .json({ message: "Citizen ID not found in user data" });
     }
 
     // Get pagination params (default: page 1, 10 per page)
@@ -192,7 +192,6 @@ export const MyDispute = async (req, res) => {
   }
 };
 
-
 export const addToTransfer = async (req, res) => {
   try {
     const { parcelId, sellerCitizenId, buyerCitizenId } = req.body;
@@ -219,4 +218,74 @@ export const addToTransfer = async (req, res) => {
   }
 };
 
-export const cancelTransfer = async (req, res) => {};
+export const cancelTransfer = async (req, res) => {
+  try {
+    const citizenId = req.user?.citizenId;
+    const { transferId } = req.params;
+
+    if (!citizenId) {
+      return res
+        .status(400)
+        .json({ message: "Citizen ID not found in user data" });
+    }
+
+    const transfer = await Transfer.findOne({
+      _id: transferId,
+      sellerCitizenId: citizenId,
+      status: "active",
+      adminApproved: { $exists: false },
+    });
+
+    if (!transfer) {
+      return res
+        .status(404)
+        .json({ message: "Transfer not found or cannot be canceled" });
+    }
+
+    transfer.status = "canceled";
+    await transfer.save();
+
+    res.status(200).json({ message: "Transfer canceled successfully" });
+  } catch (error) {
+    console.error("Error canceling transfer:", error);
+    res.status(500).json({ message: "Error canceling transfer" });
+  }
+};
+
+export const myTransfer = async (req, res) => {
+  try {
+    const citizenId = req.user?.citizenId;
+
+    if (!citizenId) {
+      return res
+        .status(400)
+        .json({ message: "Citizen ID not found in user data" });
+    }
+
+    // Pagination params
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 10;
+    const skip = (page - 1) * limit;
+
+    const filter = {
+      $or: [{ sellerCitizenId: citizenId }, { buyerCitizenId: citizenId }],
+    };
+
+    const transfers = await Transfer.find(filter)
+      .skip(skip)
+      .limit(limit)
+      .sort({ createdAt: -1 });
+
+    const total = await Transfer.countDocuments(filter);
+
+    res.status(200).json({
+      currentPage: page,
+      totalPages: Math.ceil(total / limit),
+      totalItems: total,
+      items: transfers,
+    });
+  } catch (error) {
+    console.error("Error fetching transfers:", error);
+    res.status(500).json({ message: "Error fetching transfers" });
+  }
+};

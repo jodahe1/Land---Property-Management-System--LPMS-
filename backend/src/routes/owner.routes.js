@@ -19,13 +19,13 @@ router.post("/addDispute", authenticate, authorizeRole("owner"), addDispute);
 
 router.post("/MyDispute", authenticate, authorizeRole("owner"), MyDispute);
 router.put(
-  "/removeDispute:id",
+  "/removeDispute/:id",
   authenticate,
   authorizeRole("owner"),
   removeDispute
 );
 router.put(
-  "/cancelTransfer",
+  "/cancelTransfer/:transferId",
   authenticate,
   authorizeRole("owner"),
   cancelTransfer
