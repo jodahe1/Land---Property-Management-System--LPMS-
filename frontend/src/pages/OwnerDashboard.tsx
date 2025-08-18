@@ -7,6 +7,7 @@ type TabKey =
   | "overview"
   | "myLand"
   | "pendingReview"
+  | "seeLands"
   | "addLand"
   | "disputes"
   | "addDispute"
@@ -17,6 +18,7 @@ const tabs: { key: TabKey; label: string }[] = [
   { key: "overview", label: "Overview" },
   { key: "myLand", label: "My Land" },
   { key: "pendingReview", label: "Pending Review" },
+  { key: "seeLands", label: "See Lands" },
   { key: "addLand", label: "Register Land" },
   { key: "disputes", label: "My Disputes" },
   { key: "addDispute", label: "Add Dispute" },
@@ -36,6 +38,8 @@ const OwnerDashboard = () => {
         return "My Land";
       case "pendingReview":
         return "Pending Approval";
+      case "seeLands":
+        return "See Lands";
       case "addLand":
         return "Register New Land";
       case "disputes":
@@ -87,6 +91,7 @@ const OwnerDashboard = () => {
       {active === "overview" && <Overview />}
       {active === "myLand" && <MyLand />}
       {active === "pendingReview" && <PendingReview />}
+      {active === "seeLands" && <SeeLands />}
       {active === "addLand" && <AddLand />}
       {active === "disputes" && <MyDisputes />}
       {active === "addDispute" && <AddDispute />}
@@ -96,6 +101,57 @@ const OwnerDashboard = () => {
   );
 };
 
+const SeeLands = () => {
+  const [lands, setLands] = useState<Land[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [status, setStatus] = useState<Land["status"] | "all">("all");
+
+  const fetchLands = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const { data } = await ownerApi.seeLands(status === "all" ? undefined : status);
+      setLands(data);
+    } catch (e: any) {
+      setError(e?.response?.data?.message || "Failed to fetch lands");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchLands();
+  }, [status]);
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center gap-3">
+        <select value={status} onChange={(e) => setStatus(e.target.value as any)} className="rounded-md border-gray-300 focus:border-emerald-600 focus:ring-emerald-600">
+          <option value="all">All</option>
+          <option value="active">Active</option>
+          <option value="waitingToBeApproved">Waiting</option>
+          <option value="forSell">For Sell</option>
+          <option value="onDispute">On Dispute</option>
+        </select>
+        <button onClick={fetchLands} className="px-3 py-2 rounded-md border border-gray-300 hover:bg-gray-50">Refresh</button>
+      </div>
+      {loading && <p>Loading...</p>}
+      {error && <div className="rounded-md border border-red-200 bg-red-50 p-3 text-red-700">{error}</div>}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        {lands.map((l) => (
+          <Card key={l._id}>
+            <h4 className="text-md font-semibold text-gray-900">Parcel {l.parcelId}</h4>
+            <p className="text-gray-700">{l.usageType} • {l.sizeSqm} sqm</p>
+            {l.location?.address && <p className="text-gray-600 text-sm">{l.location.address}</p>}
+            <p className="text-gray-600 text-sm">Owner: {typeof l.ownerId === "string" ? "-" : (l.ownerId?.name || "-")}</p>
+            <p className="text-gray-600 text-sm">Owner Citizen ID: {typeof l.ownerId === "string" ? "-" : (l.ownerId?.citizenId || "-")}</p>
+          </Card>
+        ))}
+      </div>
+    </div>
+  );
+};
 const Card = ({ children }: { children: React.ReactNode }) => (
   <div className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm">{children}</div>
 );

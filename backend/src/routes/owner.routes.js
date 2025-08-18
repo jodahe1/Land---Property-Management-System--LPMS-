@@ -11,12 +11,14 @@ import {
   myTransfer,
   getMe,
   removeDispute,
+  seeLands,
 } from "../controllers/owner.controller.js";
 
 const router = express.Router();
 
 router.get("/me", authenticate, authorizeRole("owner"), getMe);
 router.get("/myland", authenticate, authorizeRole("owner"), getMyLand);
+router.get("/seeLands", authenticate, authorizeRole("owner"), seeLands);
 router.post("/addland", authenticate, authorizeRole("owner"), addLand);
 
 router.post("/addDispute", authenticate, authorizeRole("owner"), addDispute);

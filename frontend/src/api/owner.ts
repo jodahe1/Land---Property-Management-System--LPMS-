@@ -49,6 +49,8 @@ export const ownerApi = {
 
   // Land
   getMyLand: (status: Land["status"] = "active") => api.get<Land[]>(`/owner/myland?status=${status}`),
+  seeLands: (status?: Land["status"]) =>
+    api.get<Land[]>(`/owner/seeLands${status ? `?status=${status}` : ""}`),
   addLand: (payload: {
     parcelId: string;
     sizeSqm: number;

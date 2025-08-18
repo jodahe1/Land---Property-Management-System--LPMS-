@@ -17,6 +17,17 @@ export const adminApi = {
     createdAt?: string;
   }>>("/admin/pendingLands"),
 
+  seeLands: (status?: "waitingToBeApproved" | "forSell" | "active" | "onDispute") =>
+    api.get<Array<{
+      _id: string;
+      parcelId: string;
+      sizeSqm: number;
+      usageType: "business" | "farming" | "residential";
+      location?: { address?: string; gps?: { latitude?: number; longitude?: number } };
+      ownerId: { _id: string; name?: string; email?: string; phoneNumber?: string; citizenId?: string; role?: string };
+      createdAt?: string;
+    }>>(`/admin/seeLands${status ? `?status=${status}` : ""}`),
+
   reviewAndApproveLand: (payload: {
     originalParcelId: string;
     parcelId?: string;

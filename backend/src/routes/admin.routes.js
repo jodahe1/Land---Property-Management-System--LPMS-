@@ -10,6 +10,7 @@ import {
   seeDisputes,
   listPendingLands,
   reviewAndApproveLand,
+  seeLands,
 } from "../controllers/admin.controller.js";
 const router = express.Router();
 
@@ -36,6 +37,13 @@ router.post(
   authenticate,
   authorizeRole("admin"),
   reviewAndApproveLand
+);
+
+router.get(
+  "/seeLands",
+  authenticate,
+  authorizeRole("admin"),
+  seeLands
 );
 
 export default router;

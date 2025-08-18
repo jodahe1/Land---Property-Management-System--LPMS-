@@ -46,6 +46,33 @@ export const getMyLand = async (req, res) => {
   }
 };
 
+// See lands for owner: list all their lands, optional status filter, include owner ref (useful for phone)
+export const seeLands = async (req, res) => {
+  try {
+    const userId = req.user._id;
+    const allowedStatuses = [
+      "waitingToBeApproved",
+      "forSell",
+      "active",
+      "onDispute",
+    ];
+    const status = req.query.status;
+    const filter = { ownerId: userId };
+    if (allowedStatuses.includes(status)) {
+      filter.status = status;
+    }
+
+    const lands = await Land.find(filter)
+      .populate("ownerId", "name email citizenId phoneNumber role")
+      .sort({ createdAt: -1 });
+
+    return res.status(200).json(lands);
+  } catch (error) {
+    console.error("Error seeing lands:", error);
+    return res.status(500).json({ message: "Server Error at seeing lands" });
+  }
+};
+
 export const addLand = async (req, res) => {
   try {
     const userId = req.user._id;

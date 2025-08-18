@@ -27,6 +27,30 @@ export const listPendingLands = async (req, res) => {
   }
 };
 
+// See lands with optional status filter
+export const seeLands = async (req, res) => {
+  try {
+    const allowedStatuses = [
+      "waitingToBeApproved",
+      "forSell",
+      "active",
+      "onDispute",
+    ];
+    const status = req.query.status;
+    const filter = allowedStatuses.includes(status)
+      ? { status }
+      : {};
+
+    const lands = await Land.find(filter)
+      .populate("ownerId", "name email citizenId phoneNumber role")
+      .sort({ createdAt: -1 });
+
+    return res.status(200).json(lands);
+  } catch (error) {
+    return res.status(500).json({ message: "Error fetching lands" });
+  }
+};
+
 // Review editable fields and approve the land in one step
 // body: {
 //   originalParcelId: string; // required to locate the land

@@ -3,7 +3,7 @@ import adminApi from "../api/admin";
 import type { Dispute, Land, PaginatedResult, Transfer } from "../api/owner";
 import { useAuthStore } from "../store/auth";
 
-type TabKey = "overview" | "approveLand" | "disputes" | "transfers" | "approveTransfer";
+type TabKey = "overview" | "approveLand" | "disputes" | "transfers" | "approveTransfer" | "seeLands";
 
 const tabs: { key: TabKey; label: string }[] = [
   { key: "overview", label: "Overview" },
@@ -11,6 +11,7 @@ const tabs: { key: TabKey; label: string }[] = [
   { key: "disputes", label: "Disputes" },
   { key: "transfers", label: "Transfers" },
   { key: "approveTransfer", label: "Approve Transfer" },
+  { key: "seeLands", label: "See Lands" },
 ];
 
 const Card = ({ children }: { children: React.ReactNode }) => (
@@ -31,6 +32,8 @@ const AdminDashboard = () => {
         return "Manage Transfers";
       case "approveTransfer":
         return "Approve Transfer";
+      case "seeLands":
+        return "See Lands";
       default:
         return "Admin Dashboard";
     }
@@ -66,6 +69,7 @@ const AdminDashboard = () => {
       {active === "disputes" && <Disputes />}
       {active === "transfers" && <Transfers />}
       {active === "approveTransfer" && <ApproveTransfer />}
+      {active === "seeLands" && <SeeLands />}
     </main>
   );
 };
@@ -392,6 +396,57 @@ const ApproveTransfer = () => {
         <button disabled={submitting} className="px-4 py-2 rounded-md bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-50">{submitting ? "Approving..." : "Approve"}</button>
       </form>
     </Card>
+  );
+};
+
+const SeeLands = () => {
+  const [lands, setLands] = useState<Array<Land & { ownerId: any }>>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [status, setStatus] = useState<Land["status"] | "all">("all");
+
+  const load = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const { data } = await adminApi.seeLands(status === "all" ? undefined : status);
+      setLands(data as any);
+    } catch (e: any) {
+      setError(e?.response?.data?.message || "Failed to load lands");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => { load(); }, [status]);
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center gap-3">
+        <select value={status} onChange={(e) => setStatus(e.target.value as any)} className="rounded-md border-gray-300 focus:border-emerald-600 focus:ring-emerald-600">
+          <option value="all">All</option>
+          <option value="active">Active</option>
+          <option value="waitingToBeApproved">Waiting</option>
+          <option value="forSell">For Sell</option>
+          <option value="onDispute">On Dispute</option>
+        </select>
+        <button onClick={load} className="px-3 py-2 rounded-md border border-gray-300 hover:bg-gray-50">Refresh</button>
+      </div>
+      {loading && <p>Loading...</p>}
+      {error && <div className="rounded-md border border-red-200 bg-red-50 p-3 text-red-700">{error}</div>}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        {lands.map((l) => (
+          <Card key={l._id}>
+            <h4 className="text-md font-semibold text-gray-900">Parcel {l.parcelId}</h4>
+            <p className="text-gray-700">{l.usageType} • {l.sizeSqm} sqm</p>
+            {l.location?.address && <p className="text-gray-600 text-sm">{l.location.address}</p>}
+            <p className="text-gray-600 text-sm">Owner: {l.ownerId?.name}</p>
+            <p className="text-gray-600 text-sm">Owner Citizen ID: {l.ownerId?.citizenId}</p>
+            <p className="text-gray-600 text-sm">Owner Phone: {l.ownerId?.phoneNumber}</p>
+          </Card>
+        ))}
+      </div>
+    </div>
   );
 };
 
