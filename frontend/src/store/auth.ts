@@ -39,7 +39,7 @@ type AuthState = {
 
 const LOCAL_STORAGE_KEY = "auth_user";
 
-export const useAuthStore = create<AuthState>((set, get) => ({
+export const useAuthStore = create<AuthState>((set) => ({
   user: null,
   loading: false,
   error: null,

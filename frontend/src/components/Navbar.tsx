@@ -35,6 +35,14 @@ const Navbar = () => {
           ) : (
             <div className="flex items-center gap-3">
               <span className="text-gray-700">Welcome, {user.name}</span>
+              {user.role === "owner" && (
+                <Link
+                  to="/owner"
+                  className="px-3 py-2 rounded-md border border-emerald-600 text-emerald-700 hover:bg-emerald-50"
+                >
+                  Owner Dashboard
+                </Link>
+              )}
               <button
                 onClick={handleLogout}
                 className="px-3 py-2 rounded-md border border-emerald-600 text-emerald-700 hover:bg-emerald-50"

@@ -1,4 +1,5 @@
-import { FormEvent, useState } from "react";
+import { useState } from "react";
+import type { FormEvent } from "react";
 import { useAuthStore } from "../store/auth";
 import { Link, useNavigate } from "react-router-dom";
 
@@ -32,7 +33,12 @@ const SignUp = () => {
     }
     try {
       await signup({ citizenId, email, phoneNumber, name, password });
-      navigate("/welcome", { replace: true });
+      const role = useAuthStore.getState().user?.role;
+      if (role === "owner") {
+        navigate("/owner", { replace: true });
+      } else {
+        navigate("/welcome", { replace: true });
+      }
     } catch (err: any) {
       // error already set in store
     }

@@ -1,6 +1,6 @@
 import { Land } from "../models/land.model.js";
-import { Dispute } from "../models/dispute.model.js";
-import { Transfer } from "../models/transfer.model.js";
+import Dispute from "../models/dispute.model.js";
+import Transfer from "../models/transfer.model.js";
 
 export const getMe = async (req, res) => {
   try {

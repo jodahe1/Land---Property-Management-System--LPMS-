@@ -5,6 +5,8 @@ import SignIn from "./pages/SignIn";
 import SignUp from "./pages/SignUp";
 import Welcome from "./pages/Welcome";
 import RequireAuth from "./components/RequireAuth";
+import RequireRole from "./components/RequireRole";
+import OwnerDashboard from "./pages/OwnerDashboard";
 import { useEffect } from "react";
 import { useAuthStore } from "./store/auth";
 
@@ -23,6 +25,9 @@ function App() {
         <Route path="/signup" element={<SignUp />} />
         <Route element={<RequireAuth />}>
           <Route path="/welcome" element={<Welcome />} />
+          <Route element={<RequireRole allowed={["owner"]} />}>
+            <Route path="/owner" element={<OwnerDashboard />} />
+          </Route>
         </Route>
         <Route path="*" element={<Landing />} />
       </Routes>

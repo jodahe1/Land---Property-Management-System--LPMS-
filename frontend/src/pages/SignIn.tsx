@@ -1,4 +1,5 @@
-import { FormEvent, useState } from "react";
+import { useState } from "react";
+import type { FormEvent } from "react";
 import { useAuthStore } from "../store/auth";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 
@@ -21,7 +22,13 @@ const SignIn = () => {
     }
     try {
       await login({ citizenId, password });
-      navigate(from, { replace: true });
+      // If owner, go to owner dashboard; otherwise go to intended or welcome
+      const role = useAuthStore.getState().user?.role;
+      if (role === "owner") {
+        navigate("/owner", { replace: true });
+      } else {
+        navigate(from, { replace: true });
+      }
     } catch (err: any) {
       // error already set in store
     }

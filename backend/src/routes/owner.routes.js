@@ -1,5 +1,5 @@
 import express from "express";
-import authenticate from "../middleware/authenticate.middleware";
+import authenticate from "../middleware/authenticate.middleware.js";
 import { authorizeRole } from "../middleware/role_check.middleware.js";
 import {
   getMyLand,
@@ -10,6 +10,7 @@ import {
   MyDispute,
   myTransfer,
   getMe,
+  removeDispute,
 } from "../controllers/owner.controller.js";
 
 const router = express.Router();
