@@ -8,6 +8,8 @@ import {
   fixDisputes,
   seeTransfers,
   seeDisputes,
+  listPendingLands,
+  reviewAndApproveLand,
 } from "../controllers/admin.controller.js";
 const router = express.Router();
 
@@ -22,5 +24,18 @@ router.post(
 router.post("/fixDisputes", authenticate, authorizeRole("admin"), fixDisputes);
 router.get("/seeTransfers", authenticate, authorizeRole("admin"), seeTransfers);
 router.get("/seeDisputes", authenticate, authorizeRole("admin"), seeDisputes);
+router.get(
+  "/pendingLands",
+  authenticate,
+  authorizeRole("admin"),
+  listPendingLands
+);
+
+router.post(
+  "/reviewAndApproveLand",
+  authenticate,
+  authorizeRole("admin"),
+  reviewAndApproveLand
+);
 
 export default router;

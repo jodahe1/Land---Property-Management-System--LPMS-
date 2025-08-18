@@ -6,6 +6,7 @@ import { useAuthStore } from "../store/auth";
 type TabKey =
   | "overview"
   | "myLand"
+  | "pendingReview"
   | "addLand"
   | "disputes"
   | "addDispute"
@@ -15,6 +16,7 @@ type TabKey =
 const tabs: { key: TabKey; label: string }[] = [
   { key: "overview", label: "Overview" },
   { key: "myLand", label: "My Land" },
+  { key: "pendingReview", label: "Pending Review" },
   { key: "addLand", label: "Register Land" },
   { key: "disputes", label: "My Disputes" },
   { key: "addDispute", label: "Add Dispute" },
@@ -32,6 +34,8 @@ const OwnerDashboard = () => {
     switch (active) {
       case "myLand":
         return "My Land";
+      case "pendingReview":
+        return "Pending Approval";
       case "addLand":
         return "Register New Land";
       case "disputes":
@@ -82,6 +86,7 @@ const OwnerDashboard = () => {
 
       {active === "overview" && <Overview />}
       {active === "myLand" && <MyLand />}
+      {active === "pendingReview" && <PendingReview />}
       {active === "addLand" && <AddLand />}
       {active === "disputes" && <MyDisputes />}
       {active === "addDispute" && <AddDispute />}
@@ -124,7 +129,7 @@ const MyLand = () => {
     setLoading(true);
     setError(null);
     try {
-      const { data } = await ownerApi.getMyLand();
+      const { data } = await ownerApi.getMyLand("active");
       setLands(data);
     } catch (e: any) {
       setError(e?.response?.data?.message || "Failed to fetch land");
@@ -154,7 +159,57 @@ const MyLand = () => {
               <div>
                 <h3 className="text-lg font-semibold text-gray-900">Parcel {l.parcelId}</h3>
                 <p className="text-gray-700">{l.usageType} • {l.sizeSqm} sqm</p>
-                {l.address && <p className="text-gray-600 text-sm">{l.address}</p>}
+                {l.location?.address && <p className="text-gray-600 text-sm">{l.location.address}</p>}
+              </div>
+            </div>
+          </Card>
+        ))}
+      </div>
+    </div>
+  );
+};
+
+const PendingReview = () => {
+  const [lands, setLands] = useState<Land[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const fetchLands = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const { data } = await ownerApi.getMyLand("waitingToBeApproved");
+      setLands(data);
+    } catch (e: any) {
+      setError(e?.response?.data?.message || "Failed to fetch land");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchLands();
+  }, []);
+
+  return (
+    <div className="space-y-4">
+      <button
+        onClick={fetchLands}
+        className="px-3 py-2 rounded-md border border-gray-300 hover:bg-gray-50"
+      >
+        Refresh
+      </button>
+      {loading && <p>Loading...</p>}
+      {error && <div className="rounded-md border border-red-200 bg-red-50 p-3 text-red-700">{error}</div>}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        {lands.map((l) => (
+          <Card key={l._id}>
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900">Parcel {l.parcelId}</h3>
+                <p className="text-gray-700">{l.usageType} • {l.sizeSqm} sqm</p>
+                <p className="text-gray-600 text-sm">Status: {l.status}</p>
+                {l.location?.address && <p className="text-gray-600 text-sm">{l.location.address}</p>}
               </div>
             </div>
           </Card>
@@ -196,7 +251,7 @@ const AddLand = () => {
         latitude: form.latitude ? Number(form.latitude) : undefined,
         longitude: form.longitude ? Number(form.longitude) : undefined,
       });
-      setMessage("Land registered successfully");
+      setMessage("Submitted for review. You can track it in Pending Approval.");
       setForm({ parcelId: "", sizeSqm: "", usageType: "residential", address: "", latitude: "", longitude: "" });
     } catch (e: any) {
       setMessage(e?.response?.data?.message || "Failed to register land");

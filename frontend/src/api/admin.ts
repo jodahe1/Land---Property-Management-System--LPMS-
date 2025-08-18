@@ -7,6 +7,27 @@ export const adminApi = {
   approveLand: (payload: { parcelId: string }) =>
     api.post("/admin/approveLand", payload),
 
+  pendingLands: () => api.get<Array<{
+    _id: string;
+    parcelId: string;
+    sizeSqm: number;
+    usageType: "business" | "farming" | "residential";
+    location?: { address?: string; gps?: { latitude?: number; longitude?: number } };
+    ownerId: { _id: string; name?: string; email?: string; citizenId?: string; role?: string };
+    createdAt?: string;
+  }>>("/admin/pendingLands"),
+
+  reviewAndApproveLand: (payload: {
+    originalParcelId: string;
+    parcelId?: string;
+    sizeSqm?: number;
+    usageType?: "business" | "farming" | "residential";
+    address?: string;
+    latitude?: number;
+    longitude?: number;
+    owner?: { name?: string; email?: string; citizenId?: string };
+  }) => api.post("/admin/reviewAndApproveLand", payload),
+
   approvetransfer: (payload: { transferId: string }) =>
     api.post("/admin/approvetransfer", payload),
 

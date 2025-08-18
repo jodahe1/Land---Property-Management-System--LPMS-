@@ -15,6 +15,113 @@ export const getMe = async (req, res) => {
   }
 };
 
+// List lands waiting for approval (with owner info)
+export const listPendingLands = async (req, res) => {
+  try {
+    const lands = await Land.find({ status: "waitingToBeApproved" })
+      .populate("ownerId", "name email citizenId role")
+      .sort({ createdAt: -1 });
+    return res.status(200).json(lands);
+  } catch (error) {
+    return res.status(500).json({ message: "Error fetching pending lands" });
+  }
+};
+
+// Review editable fields and approve the land in one step
+// body: {
+//   originalParcelId: string; // required to locate the land
+//   parcelId?: string;        // optional new parcelId
+//   sizeSqm?: number;
+//   usageType?: 'business'|'farming'|'residential';
+//   address?: string;
+//   latitude?: number;
+//   longitude?: number;
+//   owner?: { name?: string; email?: string; citizenId?: string };
+// }
+export const reviewAndApproveLand = async (req, res) => {
+  try {
+    const {
+      originalParcelId,
+      parcelId: updatedParcelId,
+      sizeSqm,
+      usageType,
+      address,
+      latitude,
+      longitude,
+      owner,
+    } = req.body || {};
+
+    if (!originalParcelId) {
+      return res.status(400).json({ message: "originalParcelId is required" });
+    }
+
+    const land = await Land.findOne({ parcelId: originalParcelId }).populate(
+      "ownerId"
+    );
+    if (!land) {
+      return res.status(404).json({ message: "Land not found" });
+    }
+
+    // Optional edits to Land
+    if (typeof updatedParcelId === "string" && updatedParcelId.trim()) {
+      land.parcelId = updatedParcelId.trim();
+    }
+    if (typeof sizeSqm === "number" && sizeSqm > 0) {
+      land.sizeSqm = sizeSqm;
+    }
+    if (
+      typeof usageType === "string" &&
+      ["business", "farming", "residential"].includes(usageType)
+    ) {
+      land.usageType = usageType;
+    }
+    if (typeof address === "string") {
+      land.location = land.location || {};
+      land.location.address = address;
+    }
+    if (typeof latitude === "number") {
+      land.location = land.location || {};
+      land.location.gps = land.location.gps || {};
+      land.location.gps.latitude = latitude;
+    }
+    if (typeof longitude === "number") {
+      land.location = land.location || {};
+      land.location.gps = land.location.gps || {};
+      land.location.gps.longitude = longitude;
+    }
+
+    // Optional edits to Owner user profile
+    if (owner && land.ownerId) {
+      const ownerDoc = land.ownerId; // populated doc
+      if (typeof owner.name === "string" && owner.name.trim()) {
+        ownerDoc.name = owner.name.trim();
+      }
+      if (typeof owner.email === "string" && owner.email.trim()) {
+        ownerDoc.email = owner.email.trim();
+      }
+      if (typeof owner.citizenId === "string" && owner.citizenId.trim()) {
+        ownerDoc.citizenId = owner.citizenId.trim();
+      }
+      await ownerDoc.save();
+    }
+
+    // Approve
+    land.status = "active";
+    land.approvedBy = req.user._id;
+    if (!Array.isArray(land.ownershipHistory) || land.ownershipHistory.length === 0) {
+      land.ownershipHistory = [
+        { ownerId: land.ownerId._id || land.ownerId, fromDate: new Date(), toDate: null },
+      ];
+    }
+
+    await land.save();
+
+    return res.status(200).json({ message: "Land reviewed and approved", land });
+  } catch (error) {
+    return res.status(500).json({ message: "Error reviewing and approving land" });
+  }
+};
+
 // Approve a land that is waiting for approval
 // body: { parcelId: string }
 export const approveLand = async (req, res) => {

@@ -6,9 +6,11 @@ export type Land = {
   ownerId?: string;
   sizeSqm: number;
   usageType: "business" | "farming" | "residential";
-  address?: string;
-  latitude?: number;
-  longitude?: number;
+  location?: {
+    address?: string;
+    gps?: { latitude?: number; longitude?: number };
+  };
+  status?: "waitingToBeApproved" | "forSell" | "active" | "onDispute";
   createdAt?: string;
   updatedAt?: string;
 };
@@ -46,7 +48,7 @@ export const ownerApi = {
   getMe: () => api.get("/owner/me"),
 
   // Land
-  getMyLand: () => api.get<Land[]>("/owner/myland"),
+  getMyLand: (status: Land["status"] = "active") => api.get<Land[]>(`/owner/myland?status=${status}`),
   addLand: (payload: {
     parcelId: string;
     sizeSqm: number;

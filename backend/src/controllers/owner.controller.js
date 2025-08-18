@@ -1,3 +1,4 @@
+import User from "../models/user.model.js";
 import { Land } from "../models/land.model.js";
 import Dispute from "../models/dispute.model.js";
 import Transfer from "../models/transfer.model.js";
@@ -17,9 +18,18 @@ export const getMe = async (req, res) => {
 export const getMyLand = async (req, res) => {
   try {
     const userId = req.user._id;
+    const allowedStatuses = [
+      "waitingToBeApproved",
+      "forSell",
+      "active",
+      "onDispute",
+    ];
+    const status = req.query.status && allowedStatuses.includes(req.query.status)
+      ? req.query.status
+      : "active";
 
-    // Find lands owned by the current user
-    const lands = await Land.find({ ownerId: userId });
+    // Find lands owned by the current user filtered by status (default: active)
+    const lands = await Land.find({ ownerId: userId, status });
 
     if (!lands || lands.length === 0) {
       return res.status(404).json({
@@ -67,9 +77,14 @@ export const addLand = async (req, res) => {
       ownerId: userId,
       sizeSqm,
       usageType,
-      address,
-      latitude,
-      longitude,
+      location: {
+        address: address || undefined,
+        gps: {
+          latitude: typeof latitude === "number" ? latitude : undefined,
+          longitude: typeof longitude === "number" ? longitude : undefined,
+        },
+      },
+      // status will default to waitingToBeApproved
     });
 
     const land = await newLand.save();
