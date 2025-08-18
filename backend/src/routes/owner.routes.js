@@ -8,16 +8,19 @@ import {
   cancelTransfer,
   addToTransfer,
   MyDispute,
+  myTransfer,
+  getMe,
 } from "../controllers/owner.controller.js";
 
 const router = express.Router();
 
+router.get("/me", authenticate, authorizeRole("owner"), getMe);
 router.get("/myland", authenticate, authorizeRole("owner"), getMyLand);
 router.post("/addland", authenticate, authorizeRole("owner"), addLand);
 
 router.post("/addDispute", authenticate, authorizeRole("owner"), addDispute);
 
-router.post("/MyDispute", authenticate, authorizeRole("owner"), MyDispute);
+router.get("/MyDispute", authenticate, authorizeRole("owner"), MyDispute);
 router.put(
   "/removeDispute/:id",
   authenticate,
@@ -37,5 +40,7 @@ router.post(
   authorizeRole("owner"),
   addToTransfer
 );
+
+router.get("/MyTransfers", authenticate, authorizeRole("owner"), myTransfer);
 
 export default router;
