@@ -26,6 +26,8 @@ const SignIn = () => {
       const role = useAuthStore.getState().user?.role;
       if (role === "owner") {
         navigate("/owner", { replace: true });
+      } else if (role === "admin") {
+        navigate("/admin", { replace: true });
       } else {
         navigate(from, { replace: true });
       }

@@ -43,6 +43,14 @@ const Navbar = () => {
                   Owner Dashboard
                 </Link>
               )}
+              {user.role === "admin" && (
+                <Link
+                  to="/admin"
+                  className="px-3 py-2 rounded-md border border-emerald-600 text-emerald-700 hover:bg-emerald-50"
+                >
+                  Admin Dashboard
+                </Link>
+              )}
               <button
                 onClick={handleLogout}
                 className="px-3 py-2 rounded-md border border-emerald-600 text-emerald-700 hover:bg-emerald-50"
