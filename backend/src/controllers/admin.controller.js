@@ -288,10 +288,17 @@ export const seeDisputes = async (req, res) => {
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 10;
     const skip = (page - 1) * limit;
+    const rank = (req.query.rank || "newest").toString();
+    const sort =
+      rank === "oldest"
+        ? { createdAt: 1 }
+        : rank === "recent"
+        ? { updatedAt: -1 }
+        : { createdAt: -1 }; // newest default
 
     const filter = { deleted_at: null };
     const [items, total] = await Promise.all([
-      Dispute.find(filter).skip(skip).limit(limit).sort({ createdAt: -1 }),
+      Dispute.find(filter).skip(skip).limit(limit).sort(sort),
       Dispute.countDocuments(filter),
     ]);
 

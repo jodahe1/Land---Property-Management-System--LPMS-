@@ -50,9 +50,13 @@ export const adminApi = {
       `/admin/seeTransfers?page=${page}&limit=${limit}`
     ),
 
-  seeDisputes: (page = 1, limit = 10) =>
+  seeDisputes: (
+    page = 1,
+    limit = 10,
+    rank: "newest" | "oldest" | "recent" = "newest"
+  ) =>
     api.get<PaginatedResult<Dispute>>(
-      `/admin/seeDisputes?page=${page}&limit=${limit}`
+      `/admin/seeDisputes?page=${page}&limit=${limit}&rank=${rank}`
     ),
 };
 

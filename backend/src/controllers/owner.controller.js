@@ -156,10 +156,9 @@ export const addDispute = async (req, res) => {
       return res.status(400).json({ message: "Invalid raisedByUserCitizenId" });
     }
 
-    const isParcelthere = Land.findOne(parcelId);
-    if (!isParcelthere) {
-      console.error("There is no Land By this id:", error);
-      res.status(500).json({ message: "There is no Land By this id:" });
+    const land = await Land.findOne({ parcelId });
+    if (!land) {
+      return res.status(404).json({ message: "There is no land with this Parcel ID" });
     }
     // Create new dispute
     const newDispute = new Dispute({
@@ -170,6 +169,10 @@ export const addDispute = async (req, res) => {
     });
 
     const dispute = await newDispute.save();
+
+    // Mark land as onDispute
+    land.status = "onDispute";
+    await land.save();
 
     res.status(201).json({ message: "Dispute added successfully", dispute });
   } catch (error) {

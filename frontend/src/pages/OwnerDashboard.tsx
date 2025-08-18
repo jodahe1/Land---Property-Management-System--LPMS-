@@ -8,6 +8,7 @@ type TabKey =
   | "myLand"
   | "pendingReview"
   | "seeLands"
+  | "addDisputeFromLand"
   | "addLand"
   | "disputes"
   | "addDispute"
@@ -19,6 +20,7 @@ const tabs: { key: TabKey; label: string }[] = [
   { key: "myLand", label: "My Land" },
   { key: "pendingReview", label: "Pending Review" },
   { key: "seeLands", label: "See Lands" },
+  { key: "addDisputeFromLand", label: "Dispute a Land" },
   { key: "addLand", label: "Register Land" },
   { key: "disputes", label: "My Disputes" },
   { key: "addDispute", label: "Add Dispute" },
@@ -40,6 +42,8 @@ const OwnerDashboard = () => {
         return "Pending Approval";
       case "seeLands":
         return "See Lands";
+      case "addDisputeFromLand":
+        return "Dispute a Land";
       case "addLand":
         return "Register New Land";
       case "disputes":
@@ -92,6 +96,7 @@ const OwnerDashboard = () => {
       {active === "myLand" && <MyLand />}
       {active === "pendingReview" && <PendingReview />}
       {active === "seeLands" && <SeeLands />}
+      {active === "addDisputeFromLand" && <AddDisputeFromLand />}
       {active === "addLand" && <AddLand />}
       {active === "disputes" && <MyDisputes />}
       {active === "addDispute" && <AddDispute />}
@@ -496,6 +501,134 @@ const AddDispute = () => {
         </div>
       </form>
     </Card>
+  );
+};
+
+const AddDisputeFromLand = () => {
+  const [lands, setLands] = useState<Land[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const user = useAuthStore((s) => s.user)!;
+  const [selected, setSelected] = useState<Land | null>(null);
+  const [fileUrl, setFileUrl] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [message, setMessage] = useState<string | null>(null);
+
+  const fetchLands = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const { data } = await ownerApi.seeLands("active");
+      setLands(data);
+    } catch (e: any) {
+      setError(e?.response?.data?.message || "Failed to fetch lands");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchLands();
+  }, []);
+
+  return (
+    <div className="space-y-4">
+      {message && (
+        <div
+          className={`rounded-md border p-3 text-sm ${
+            message.toLowerCase().includes("success")
+              ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+              : "border-red-200 bg-red-50 text-red-700"
+          }`}
+        >
+          {message}
+        </div>
+      )}
+      {!selected ? (
+        <>
+          {loading && <p>Loading...</p>}
+          {error && (
+            <div className="rounded-md border border-red-200 bg-red-50 p-3 text-red-700">{error}</div>
+          )}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {lands.map((l) => (
+              <Card key={l._id}>
+                <h4 className="text-md font-semibold text-gray-900">Parcel {l.parcelId}</h4>
+                <p className="text-gray-700">{l.usageType} • {l.sizeSqm} sqm</p>
+                {l.location?.address && (
+                  <p className="text-gray-600 text-sm">{l.location.address}</p>
+                )}
+                <div className="mt-3">
+                  <button
+                    onClick={() => setSelected(l)}
+                    className="px-3 py-2 rounded-md border border-emerald-600 text-emerald-700 hover:bg-emerald-50"
+                  >
+                    Dispute this Land
+                  </button>
+                </div>
+              </Card>
+            ))}
+          </div>
+        </>
+      ) : (
+        <Card>
+          <h4 className="text-md font-semibold text-gray-900">Dispute • Parcel {selected.parcelId}</h4>
+          <div className="text-sm text-gray-700 mb-3">
+            <p>Usage: {selected.usageType} • Size: {selected.sizeSqm} sqm</p>
+            {selected.location?.address && <p>Address: {selected.location.address}</p>}
+          </div>
+          <form
+            onSubmit={async (e) => {
+              e.preventDefault();
+              setSubmitting(true);
+              setMessage(null);
+              try {
+                await ownerApi.addDispute({
+                  fileUrl: fileUrl.trim(),
+                  parcelId: selected.parcelId,
+                  landOwnerCitizenId: user.citizenId,
+                  raisedByUserCitizenId: user.citizenId,
+                });
+                setMessage("Dispute submitted successfully");
+                setSelected(null);
+                setFileUrl("");
+                await fetchLands();
+              } catch (e: any) {
+                setMessage(e?.response?.data?.message || "Failed to submit dispute");
+              } finally {
+                setSubmitting(false);
+              }
+            }}
+            className="grid grid-cols-1 md:grid-cols-2 gap-4"
+          >
+            <div className="md:col-span-2">
+              <label className="block text-sm font-medium text-gray-700">Evidence File URL</label>
+              <input
+                value={fileUrl}
+                onChange={(e) => setFileUrl(e.target.value)}
+                placeholder="https://..."
+                className="mt-1 w-full rounded-md border-gray-300 focus:border-emerald-600 focus:ring-emerald-600"
+              />
+            </div>
+            <div className="md:col-span-2 flex gap-2">
+              <button
+                disabled={submitting}
+                className="px-4 py-2 rounded-md bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-50"
+              >
+                {submitting ? "Submitting..." : "Submit Dispute"}
+              </button>
+              <button
+                type="button"
+                onClick={() => setSelected(null)}
+                className="px-4 py-2 rounded-md border border-gray-300 hover:bg-gray-50"
+              >
+                Cancel
+              </button>
+            </div>
+          </form>
+        </Card>
+      )}
+    </div>
   );
 };
 

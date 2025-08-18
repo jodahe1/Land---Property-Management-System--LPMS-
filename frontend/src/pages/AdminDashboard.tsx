@@ -266,11 +266,12 @@ const Disputes = () => {
   const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [rank, setRank] = useState<"newest" | "oldest" | "recent">("newest");
   const load = async (p = page) => {
     setLoading(true);
     setError(null);
     try {
-      const { data } = await adminApi.seeDisputes(p, 10);
+      const { data } = await adminApi.seeDisputes(p, 10, rank);
       setData(data);
     } catch (e: any) {
       setError(e?.response?.data?.message || "Failed to load disputes");
@@ -278,9 +279,16 @@ const Disputes = () => {
       setLoading(false);
     }
   };
-  useEffect(() => { load(1); }, []);
+  useEffect(() => { load(1); }, [rank]);
   return (
     <div className="space-y-4">
+      <div className="flex items-center gap-3">
+        <select value={rank} onChange={(e) => setRank(e.target.value as any)} className="rounded-md border-gray-300 focus:border-emerald-600 focus:ring-emerald-600">
+          <option value="newest">Newest</option>
+          <option value="recent">Recently Updated</option>
+          <option value="oldest">Oldest</option>
+        </select>
+      </div>
       {loading && <p>Loading...</p>}
       {error && <div className="rounded-md border border-red-200 bg-red-50 p-3 text-red-700">{error}</div>}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
