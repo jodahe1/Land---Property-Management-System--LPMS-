@@ -9,7 +9,7 @@ const transferSchema = new mongoose.Schema(
     },
     status: {
       type: String,
-      enum: ["active", "sold"],
+      enum: ["active", "sold", "canceled"],
       default: "active",
     },
     sellerCitizenId: {
@@ -21,6 +21,10 @@ const transferSchema = new mongoose.Schema(
       type: String,
       required: [true, "Buyer Citizen ID is required"],
       trim: true,
+    },
+    previousLandStatus: {
+      type: String,
+      enum: ["waitingToBeApproved", "forSell", "active", "onDispute"],
     },
     adminApproved: {
       type: String, // This will store admin's ID

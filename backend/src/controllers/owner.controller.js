@@ -196,6 +196,15 @@ export const removeDispute = async (req, res) => {
 
     await dispute.save();
 
+    // Restore land status to active when dispute is removed
+    if (dispute.parcelId) {
+      const land = await Land.findOne({ parcelId: dispute.parcelId });
+      if (land && land.status === "onDispute") {
+        land.status = "active";
+        await land.save();
+      }
+    }
+
     res.status(200).json({
       message: "Dispute dropped successfully",
       dispute,
@@ -223,11 +232,14 @@ export const MyDispute = async (req, res) => {
 
     // Filter for disputes belonging to the user and not soft-deleted
     const filter = {
-      deleted_at: null,
-      $or: [
-        { landOwnerCitizenId: citizenId },
-        { raisedByUserCitizenId: citizenId },
-      ],
+      $and: [
+        { $or: [ { deleted_at: null }, { deleted_at: { $exists: false } } ] },
+        { $or: [
+            { landOwnerCitizenId: citizenId },
+            { raisedByUserCitizenId: citizenId },
+          ]
+        }
+      ]
     };
 
     const disputes = await Dispute.find(filter)
@@ -260,10 +272,21 @@ export const addToTransfer = async (req, res) => {
         .json({ message: "No land found with this Parcel ID" });
     }
 
+    // Block adding transfer if land is on dispute
+    if (isParcelThere.status === "onDispute") {
+      return res.status(400).json({ message: "Cannot add a land on dispute to transfer" });
+    }
+
+    // Record previous status and set land to forSell
+    const previousStatus = isParcelThere.status;
+    isParcelThere.status = "forSell";
+    await isParcelThere.save();
+
     const newTransfer = new Transfer({
       parcelId,
       sellerCitizenId,
       buyerCitizenId,
+      previousLandStatus: previousStatus,
     });
 
     const transfer = await newTransfer.save();
@@ -301,6 +324,14 @@ export const cancelTransfer = async (req, res) => {
 
     transfer.status = "canceled";
     await transfer.save();
+
+    // Restore land status to what it was before transfer
+    const land = await Land.findOne({ parcelId: transfer.parcelId });
+    if (land) {
+      const restoreStatus = transfer.previousLandStatus || "active";
+      land.status = restoreStatus;
+      await land.save();
+    }
 
     res.status(200).json({ message: "Transfer canceled successfully" });
   } catch (error) {

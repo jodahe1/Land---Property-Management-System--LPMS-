@@ -23,7 +23,6 @@ const tabs: { key: TabKey; label: string }[] = [
   { key: "addDisputeFromLand", label: "Dispute a Land" },
   { key: "addLand", label: "Register Land" },
   { key: "disputes", label: "My Disputes" },
-  { key: "addDispute", label: "Add Dispute" },
   { key: "transfers", label: "My Transfers" },
   { key: "addToTransfer", label: "Add To Transfer" },
 ];
@@ -48,8 +47,6 @@ const OwnerDashboard = () => {
         return "Register New Land";
       case "disputes":
         return "My Disputes";
-      case "addDispute":
-        return "Add Dispute";
       case "transfers":
         return "My Transfers";
       case "addToTransfer":
@@ -99,7 +96,6 @@ const OwnerDashboard = () => {
       {active === "addDisputeFromLand" && <AddDisputeFromLand />}
       {active === "addLand" && <AddLand />}
       {active === "disputes" && <MyDisputes />}
-      {active === "addDispute" && <AddDispute />}
       {active === "transfers" && <MyTransfers />}
       {active === "addToTransfer" && <AddToTransfer />}
     </main>
@@ -143,17 +139,47 @@ const SeeLands = () => {
       </div>
       {loading && <p>Loading...</p>}
       {error && <div className="rounded-md border border-red-200 bg-red-50 p-3 text-red-700">{error}</div>}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {lands.map((l) => (
-          <Card key={l._id}>
-            <h4 className="text-md font-semibold text-gray-900">Parcel {l.parcelId}</h4>
-            <p className="text-gray-700">{l.usageType} • {l.sizeSqm} sqm</p>
-            {l.location?.address && <p className="text-gray-600 text-sm">{l.location.address}</p>}
-            <p className="text-gray-600 text-sm">Owner: {typeof l.ownerId === "string" ? "-" : (l.ownerId?.name || "-")}</p>
-            <p className="text-gray-600 text-sm">Owner Citizen ID: {typeof l.ownerId === "string" ? "-" : (l.ownerId?.citizenId || "-")}</p>
-          </Card>
-        ))}
-      </div>
+      {!loading && !error && lands.length === 0 && (
+        <div className="text-center py-12">
+          <div className="mx-auto max-w-md">
+            <div className="rounded-lg border border-gray-200 bg-white p-8 shadow-sm">
+              <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-gray-100">
+                <svg className="h-6 w-6 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                </svg>
+              </div>
+              <h3 className="mt-4 text-lg font-medium text-gray-900">No Lands Found</h3>
+              <p className="mt-2 text-sm text-gray-600">
+                {status === "all" 
+                  ? "You don't have any lands registered yet. Register your first land to get started."
+                  : `No lands found with status "${status}". Try changing the filter or register a new land.`
+                }
+              </p>
+              <div className="mt-6">
+                <button
+                  onClick={() => window.location.hash = '#addLand'}
+                  className="inline-flex items-center rounded-md bg-emerald-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-emerald-700 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2"
+                >
+                  Register New Land
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+      {lands.length > 0 && (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {lands.map((l) => (
+            <Card key={l._id}>
+              <h4 className="text-md font-semibold text-gray-900">Parcel {l.parcelId}</h4>
+              <p className="text-gray-700">{l.usageType} • {l.sizeSqm} sqm</p>
+              {l.location?.address && <p className="text-gray-600 text-sm">{l.location.address}</p>}
+              <p className="text-gray-600 text-sm">Owner: {typeof l.ownerId === "string" ? "-" : (l.ownerId?.name || "-")}</p>
+              <p className="text-gray-600 text-sm">Owner Citizen ID: {typeof l.ownerId === "string" ? "-" : (l.ownerId?.citizenId || "-")}</p>
+            </Card>
+          ))}
+        </div>
+      )}
     </div>
   );
 };
@@ -185,13 +211,19 @@ const MyLand = () => {
   const [lands, setLands] = useState<Land[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [noLands, setNoLands] = useState(false);
 
   const fetchLands = async () => {
     setLoading(true);
     setError(null);
+    setNoLands(false);
     try {
-      const { data } = await ownerApi.getMyLand("active");
-      setLands(data);
+      const { data } = await ownerApi.seeLands();
+      const filtered = (data || []).filter(
+        (l) => l.status === "active" || l.status === "onDispute"
+      );
+      setLands(filtered);
+      setNoLands(filtered.length === 0);
     } catch (e: any) {
       setError(e?.response?.data?.message || "Failed to fetch land");
     } finally {
@@ -202,6 +234,34 @@ const MyLand = () => {
   useEffect(() => {
     fetchLands();
   }, []);
+
+  if (noLands) {
+    return (
+      <div className="text-center py-12">
+        <div className="mx-auto max-w-md">
+          <div className="rounded-lg border border-gray-200 bg-white p-8 shadow-sm">
+            <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-gray-100">
+              <svg className="h-6 w-6 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+              </svg>
+            </div>
+            <h3 className="mt-4 text-lg font-medium text-gray-900">No Active or Disputed Lands Found</h3>
+            <p className="mt-2 text-sm text-gray-600">
+              You don't have any active or disputed lands yet. Register your first land to get started.
+            </p>
+            <div className="mt-6">
+              <button
+                onClick={() => window.location.hash = '#addLand'}
+                className="inline-flex items-center rounded-md bg-emerald-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-emerald-700 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2"
+              >
+                Register Your First Land
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-4">
@@ -221,6 +281,9 @@ const MyLand = () => {
                 <h3 className="text-lg font-semibold text-gray-900">Parcel {l.parcelId}</h3>
                 <p className="text-gray-700">{l.usageType} • {l.sizeSqm} sqm</p>
                 {l.location?.address && <p className="text-gray-600 text-sm">{l.location.address}</p>}
+                {l.status === "onDispute" && (
+                  <p className="text-red-600 text-sm font-medium mt-1">On Dispute</p>
+                )}
               </div>
             </div>
           </Card>
@@ -234,15 +297,21 @@ const PendingReview = () => {
   const [lands, setLands] = useState<Land[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [noLands, setNoLands] = useState(false);
 
   const fetchLands = async () => {
     setLoading(true);
     setError(null);
+    setNoLands(false);
     try {
       const { data } = await ownerApi.getMyLand("waitingToBeApproved");
       setLands(data);
     } catch (e: any) {
-      setError(e?.response?.data?.message || "Failed to fetch land");
+      if (e?.response?.status === 404) {
+        setNoLands(true);
+      } else {
+        setError(e?.response?.data?.message || "Failed to fetch land");
+      }
     } finally {
       setLoading(false);
     }
@@ -251,6 +320,34 @@ const PendingReview = () => {
   useEffect(() => {
     fetchLands();
   }, []);
+
+  if (noLands) {
+    return (
+      <div className="text-center py-12">
+        <div className="mx-auto max-w-md">
+          <div className="rounded-lg border border-gray-200 bg-white p-8 shadow-sm">
+            <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-gray-100">
+              <svg className="h-6 w-6 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            </div>
+            <h3 className="mt-4 text-lg font-medium text-gray-900">No Pending Lands</h3>
+            <p className="mt-2 text-sm text-gray-600">
+              You don't have any lands waiting for approval. All your lands are either active or have other statuses.
+            </p>
+            <div className="mt-6">
+              <button
+                onClick={() => window.location.hash = '#addLand'}
+                className="inline-flex items-center rounded-md bg-emerald-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-emerald-700 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2"
+              >
+                Register New Land
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-4">
@@ -274,7 +371,7 @@ const PendingReview = () => {
               </div>
             </div>
           </Card>
-        ))}
+          ))}
       </div>
     </div>
   );
@@ -396,8 +493,33 @@ const MyDisputes = () => {
 
   return (
     <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <button
+          onClick={() => fetchData(page)}
+          className="px-3 py-2 rounded-md border border-gray-300 hover:bg-gray-50"
+        >
+          Refresh
+        </button>
+      </div>
       {loading && <p>Loading...</p>}
       {error && <div className="rounded-md border border-red-200 bg-red-50 p-3 text-red-700">{error}</div>}
+      {!loading && !error && (!data || data.items.length === 0) && (
+        <div className="text-center py-12">
+          <div className="mx-auto max-w-md">
+            <div className="rounded-lg border border-gray-200 bg-white p-8 shadow-sm">
+              <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-gray-100">
+                <svg className="h-6 w-6 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+              </div>
+              <h3 className="mt-4 text-lg font-medium text-gray-900">No Disputes Found</h3>
+              <p className="mt-2 text-sm text-gray-600">
+                You don't have any disputes yet.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {data?.items.map((d) => (
           <Card key={d._id}>
