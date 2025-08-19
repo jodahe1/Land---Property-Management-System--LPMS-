@@ -19,9 +19,15 @@ const transferSchema = new mongoose.Schema(
     },
     buyerCitizenId: {
       type: String,
-      required: [true, "Buyer Citizen ID is required"],
       trim: true,
     },
+    bids: [
+      {
+        buyerCitizenId: { type: String, required: true, trim: true },
+        amount: { type: Number, required: true, min: 0 },
+        createdAt: { type: Date, default: Date.now },
+      },
+    ],
     previousLandStatus: {
       type: String,
       enum: ["waitingToBeApproved", "forSell", "active", "onDispute"],

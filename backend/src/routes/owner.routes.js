@@ -12,6 +12,8 @@ import {
   getMe,
   removeDispute,
   seeLands,
+  placeBid,
+  confirmTransfer,
 } from "../controllers/owner.controller.js";
 
 const router = express.Router();
@@ -45,5 +47,19 @@ router.post(
 );
 
 router.get("/MyTransfers", authenticate, authorizeRole("owner"), myTransfer);
+
+// Bidding endpoints
+router.post(
+  "/placeBid/:transferId",
+  authenticate,
+  authorizeRole("owner"),
+  placeBid
+);
+router.post(
+  "/confirmTransfer/:transferId",
+  authenticate,
+  authorizeRole("owner"),
+  confirmTransfer
+);
 
 export default router;

@@ -90,7 +90,7 @@ const OwnerDashboard = () => {
       </div>
 
       {active === "overview" && <Overview />}
-      {active === "myLand" && <MyLand />}
+      {active === "myLand" && <MyLand onGoRegister={() => setActive("addLand")} />}
       {active === "pendingReview" && <PendingReview />}
       {active === "seeLands" && <SeeLands />}
       {active === "addDisputeFromLand" && <AddDisputeFromLand />}
@@ -207,7 +207,7 @@ const Overview = () => {
   );
 };
 
-const MyLand = () => {
+const MyLand = ({ onGoRegister }: { onGoRegister: () => void }) => {
   const [lands, setLands] = useState<Land[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -218,12 +218,23 @@ const MyLand = () => {
     setError(null);
     setNoLands(false);
     try {
-      const { data } = await ownerApi.seeLands();
-      const filtered = (data || []).filter(
-        (l) => l.status === "active" || l.status === "onDispute"
-      );
-      setLands(filtered);
-      setNoLands(filtered.length === 0);
+      const settled = await Promise.allSettled([
+        ownerApi.getMyLand("active"),
+        ownerApi.getMyLand("onDispute"),
+        ownerApi.getMyLand("forSell"),
+      ]);
+      const combined: Land[] = [];
+      let non404Error: any = null;
+      settled.forEach((r: any) => {
+        if (r.status === "fulfilled") {
+          combined.push(...(r.value.data as Land[]));
+        } else if (r.reason?.response?.status !== 404) {
+          non404Error = r.reason;
+        }
+      });
+      if (non404Error) throw non404Error;
+      setLands(combined);
+      setNoLands(combined.length === 0);
     } catch (e: any) {
       setError(e?.response?.data?.message || "Failed to fetch land");
     } finally {
@@ -245,13 +256,13 @@ const MyLand = () => {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
               </svg>
             </div>
-            <h3 className="mt-4 text-lg font-medium text-gray-900">No Active or Disputed Lands Found</h3>
+            <h3 className="mt-4 text-lg font-medium text-gray-900">No Active / For Sell / Disputed Lands Found</h3>
             <p className="mt-2 text-sm text-gray-600">
-              You don't have any active or disputed lands yet. Register your first land to get started.
+              You don't have any active, for-sell, or disputed lands yet. Register your first land to get started.
             </p>
             <div className="mt-6">
               <button
-                onClick={() => window.location.hash = '#addLand'}
+                onClick={onGoRegister}
                 className="inline-flex items-center rounded-md bg-emerald-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-emerald-700 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2"
               >
                 Register Your First Land

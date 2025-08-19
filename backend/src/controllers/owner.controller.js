@@ -262,7 +262,7 @@ export const MyDispute = async (req, res) => {
 
 export const addToTransfer = async (req, res) => {
   try {
-    const { parcelId, sellerCitizenId, buyerCitizenId } = req.body;
+    const { parcelId, sellerCitizenId } = req.body;
 
     const isParcelThere = await Land.findOne({ parcelId });
     if (!isParcelThere) {
@@ -284,7 +284,6 @@ export const addToTransfer = async (req, res) => {
     const newTransfer = new Transfer({
       parcelId,
       sellerCitizenId,
-      buyerCitizenId,
       previousLandStatus: previousStatus,
     });
 
@@ -339,6 +338,91 @@ export const cancelTransfer = async (req, res) => {
   }
 };
 
+// Place a bid on an active transfer
+export const placeBid = async (req, res) => {
+  try {
+    const buyerCitizenId = req.user?.citizenId;
+    const { transferId } = req.params;
+    const { amount } = req.body;
+
+    if (!buyerCitizenId) {
+      return res.status(400).json({ message: "Citizen ID not found in user data" });
+    }
+    if (typeof amount !== "number" || amount <= 0) {
+      return res.status(400).json({ message: "Invalid bid amount" });
+    }
+
+    const transfer = await Transfer.findOne({ _id: transferId, status: "active" });
+    if (!transfer) {
+      return res.status(404).json({ message: "Transfer not found or not active" });
+    }
+
+    // Prevent owner from bidding on their own land
+    if (transfer.sellerCitizenId === buyerCitizenId) {
+      return res.status(400).json({ message: "Seller cannot place a bid on their own land" });
+    }
+
+    transfer.bids = transfer.bids || [];
+    transfer.bids.push({ buyerCitizenId, amount });
+    await transfer.save();
+
+    res.status(201).json({ message: "Bid placed successfully", transfer });
+  } catch (error) {
+    console.error("Error placing bid:", error);
+    res.status(500).json({ message: "Error placing bid" });
+  }
+};
+
+// Seller confirms a bid and finalizes transfer
+export const confirmTransfer = async (req, res) => {
+  try {
+    const sellerCitizenId = req.user?.citizenId;
+    const { transferId } = req.params;
+    const { buyerCitizenId } = req.body;
+
+    if (!sellerCitizenId) {
+      return res.status(400).json({ message: "Citizen ID not found in user data" });
+    }
+
+    const transfer = await Transfer.findOne({ _id: transferId, sellerCitizenId, status: "active" });
+    if (!transfer) {
+      return res.status(404).json({ message: "Transfer not found or cannot be confirmed" });
+    }
+
+    // Ensure the buyer has placed a bid
+    const hasBid = (transfer.bids || []).some((b) => b.buyerCitizenId === buyerCitizenId);
+    if (!hasBid) {
+      return res.status(400).json({ message: "Selected buyer has not placed a bid" });
+    }
+
+    // Update land ownership
+    const land = await Land.findOne({ parcelId: transfer.parcelId });
+    if (!land) {
+      return res.status(404).json({ message: "Land not found" });
+    }
+
+    // Change owner to the buyer's user record
+    const buyerUser = await User.findOne({ citizenId: buyerCitizenId });
+    if (!buyerUser) {
+      return res.status(404).json({ message: "Buyer user not found" });
+    }
+
+    land.ownerId = buyerUser._id;
+    land.status = "active";
+    await land.save();
+
+    // Close transfer
+    transfer.status = "sold";
+    transfer.buyerCitizenId = buyerCitizenId;
+    await transfer.save();
+
+    res.status(200).json({ message: "Transfer confirmed successfully" });
+  } catch (error) {
+    console.error("Error confirming transfer:", error);
+    res.status(500).json({ message: "Error confirming transfer" });
+  }
+};
+
 export const myTransfer = async (req, res) => {
   try {
     const citizenId = req.user?.citizenId;
@@ -355,7 +439,11 @@ export const myTransfer = async (req, res) => {
     const skip = (page - 1) * limit;
 
     const filter = {
-      $or: [{ sellerCitizenId: citizenId }, { buyerCitizenId: citizenId }],
+      $or: [
+        { sellerCitizenId: citizenId },
+        { buyerCitizenId: citizenId },
+        { bids: { $elemMatch: { buyerCitizenId: citizenId } } },
+      ],
     };
 
     const transfers = await Transfer.find(filter)
