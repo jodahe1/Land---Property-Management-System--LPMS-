@@ -49,7 +49,6 @@ export const getMyLand = async (req, res) => {
 // See lands for owner: list all their lands, optional status filter, include owner ref (useful for phone)
 export const seeLands = async (req, res) => {
   try {
-    const userId = req.user._id;
     const allowedStatuses = [
       "waitingToBeApproved",
       "forSell",
@@ -57,7 +56,7 @@ export const seeLands = async (req, res) => {
       "onDispute",
     ];
     const status = req.query.status;
-    const filter = { ownerId: userId };
+    const filter = {};
     if (allowedStatuses.includes(status)) {
       filter.status = status;
     }

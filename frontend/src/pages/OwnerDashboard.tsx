@@ -635,12 +635,13 @@ const AddDisputeFromLand = () => {
   const [fileUrl, setFileUrl] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
+  const [status, setStatus] = useState<Land["status"] | "all">("active");
 
   const fetchLands = async () => {
     setLoading(true);
     setError(null);
     try {
-      const { data } = await ownerApi.seeLands("active");
+      const { data } = await ownerApi.seeLands(status === "all" ? undefined : status);
       setLands(data);
     } catch (e: any) {
       setError(e?.response?.data?.message || "Failed to fetch lands");
@@ -651,7 +652,7 @@ const AddDisputeFromLand = () => {
 
   useEffect(() => {
     fetchLands();
-  }, []);
+  }, [status]);
 
   return (
     <div className="space-y-4">
@@ -668,27 +669,36 @@ const AddDisputeFromLand = () => {
       )}
       {!selected ? (
         <>
+          <div className="flex items-center gap-3">
+            <select value={status} onChange={(e) => setStatus(e.target.value as any)} className="rounded-md border-gray-300 focus:border-emerald-600 focus:ring-emerald-600">
+              <option value="all">All</option>
+              <option value="active">Active</option>
+              <option value="waitingToBeApproved">Waiting</option>
+              <option value="forSell">For Sell</option>
+              <option value="onDispute">On Dispute</option>
+            </select>
+            <button onClick={fetchLands} className="px-3 py-2 rounded-md border border-gray-300 hover:bg-gray-50">Refresh</button>
+          </div>
           {loading && <p>Loading...</p>}
           {error && (
             <div className="rounded-md border border-red-200 bg-red-50 p-3 text-red-700">{error}</div>
           )}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {lands.map((l) => (
-              <Card key={l._id}>
-                <h4 className="text-md font-semibold text-gray-900">Parcel {l.parcelId}</h4>
-                <p className="text-gray-700">{l.usageType} • {l.sizeSqm} sqm</p>
-                {l.location?.address && (
-                  <p className="text-gray-600 text-sm">{l.location.address}</p>
-                )}
-                <div className="mt-3">
-                  <button
-                    onClick={() => setSelected(l)}
-                    className="px-3 py-2 rounded-md border border-emerald-600 text-emerald-700 hover:bg-emerald-50"
-                  >
-                    Dispute this Land
-                  </button>
-                </div>
-              </Card>
+              <button key={l._id} onClick={() => l.status !== "onDispute" ? setSelected(l) : null} className="text-left">
+                <Card>
+                  <h4 className="text-md font-semibold text-gray-900">Parcel {l.parcelId}</h4>
+                  <p className="text-gray-700">{l.usageType} • {l.sizeSqm} sqm</p>
+                  {l.location?.address && (
+                    <p className="text-gray-600 text-sm">{l.location.address}</p>
+                  )}
+                  <p className="text-gray-600 text-sm">Owner: {typeof l.ownerId === "string" ? "-" : (l.ownerId?.name || "-")}</p>
+                  <p className="text-gray-600 text-sm">Owner Citizen ID: {typeof l.ownerId === "string" ? "-" : (l.ownerId?.citizenId || "-")}</p>
+                  {l.status === "onDispute" && (
+                    <p className="text-red-600 text-sm font-medium mt-1">Already On Dispute</p>
+                  )}
+                </Card>
+              </button>
             ))}
           </div>
         </>
@@ -698,6 +708,8 @@ const AddDisputeFromLand = () => {
           <div className="text-sm text-gray-700 mb-3">
             <p>Usage: {selected.usageType} • Size: {selected.sizeSqm} sqm</p>
             {selected.location?.address && <p>Address: {selected.location.address}</p>}
+            <p>Owner: {typeof selected.ownerId === "string" ? "-" : (selected.ownerId?.name || "-")}</p>
+            <p>Owner Citizen ID: {typeof selected.ownerId === "string" ? "-" : (selected.ownerId?.citizenId || "-")}</p>
           </div>
           <form
             onSubmit={async (e) => {
@@ -705,10 +717,11 @@ const AddDisputeFromLand = () => {
               setSubmitting(true);
               setMessage(null);
               try {
+                const ownerCitizenId = typeof selected.ownerId === "string" ? "" : (selected.ownerId?.citizenId || "");
                 await ownerApi.addDispute({
                   fileUrl: fileUrl.trim(),
                   parcelId: selected.parcelId,
-                  landOwnerCitizenId: user.citizenId,
+                  landOwnerCitizenId: ownerCitizenId || user.citizenId,
                   raisedByUserCitizenId: user.citizenId,
                 });
                 setMessage("Dispute submitted successfully");
@@ -817,67 +830,150 @@ const MyTransfers = () => {
 
 const AddToTransfer = () => {
   const user = useAuthStore((s) => s.user)!;
-  const [form, setForm] = useState({
-    parcelId: "",
-    sellerCitizenId: user.citizenId,
-    buyerCitizenId: "",
-  });
+  const [lands, setLands] = useState<Land[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [selected, setSelected] = useState<Land | null>(null);
+  const [buyerId, setBuyerId] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
 
-  const onChange = (
-    e: React.ChangeEvent<HTMLInputElement>
-  ) => {
-    const { name, value } = e.target;
-    setForm((prev) => ({ ...prev, [name]: value }));
-  };
-
-  const onSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setSubmitting(true);
-    setMessage(null);
+  const fetchActiveLands = async () => {
+    setLoading(true);
+    setError(null);
     try {
-      await ownerApi.addToTransfer({
-        parcelId: form.parcelId.trim(),
-        sellerCitizenId: form.sellerCitizenId.trim(),
-        buyerCitizenId: form.buyerCitizenId.trim(),
-      });
-      setMessage("Added to transfer successfully");
-      setForm({ parcelId: "", sellerCitizenId: user.citizenId, buyerCitizenId: "" });
+      const { data } = await ownerApi.getMyLand("active");
+      setLands(data);
     } catch (e: any) {
-      setMessage(e?.response?.data?.message || "Failed to add to transfer");
+      setLands([]);
+      const msg = e?.response?.data?.message || "Failed to fetch land";
+      // If 404 (no active lands), treat as empty state instead of error banner
+      if (e?.response?.status === 404) {
+        setError(null);
+      } else {
+        setError(msg);
+      }
     } finally {
-      setSubmitting(false);
+      setLoading(false);
     }
   };
 
+  useEffect(() => {
+    fetchActiveLands();
+  }, []);
+
   return (
-    <Card>
-      <form onSubmit={onSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {message && (
-          <div
-            className={`md:col-span-2 rounded-md border p-3 text-sm ${
-              message.toLowerCase().includes("success")
-                ? "border-emerald-200 bg-emerald-50 text-emerald-700"
-                : "border-red-200 bg-red-50 text-red-700"
-            }`}
-          >
-            {message}
+    <div className="space-y-4">
+      {message && (
+        <div
+          className={`rounded-md border p-3 text-sm ${
+            message.toLowerCase().includes("success")
+              ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+              : "border-red-200 bg-red-50 text-red-700"
+          }`}
+        >
+          {message}
+        </div>
+      )}
+
+      {!selected ? (
+        <>
+          <div className="flex items-center justify-between">
+            <button onClick={fetchActiveLands} className="px-3 py-2 rounded-md border border-gray-300 hover:bg-gray-50">Refresh</button>
           </div>
-        )}
-        <div>
-          <label className="block text-sm font-medium text-gray-700">Parcel ID</label>
-          <input name="parcelId" value={form.parcelId} onChange={onChange} className="mt-1 w-full rounded-md border-gray-300 focus:border-emerald-600 focus:ring-emerald-600" />
-        </div>
-        <div>
-          <label className="block text-sm font-medium text-gray-700">Buyer Citizen ID</label>
-          <input name="buyerCitizenId" value={form.buyerCitizenId} onChange={onChange} className="mt-1 w-full rounded-md border-gray-300 focus:border-emerald-600 focus:ring-emerald-600" />
-        </div>
-        <div className="md:col-span-2">
-          <button disabled={submitting} className="px-4 py-2 rounded-md bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-50">{submitting ? "Submitting..." : "Add To Transfer"}</button>
-        </div>
-      </form>
-    </Card>
+          {loading && <p>Loading...</p>}
+          {error && <div className="rounded-md border border-red-200 bg-red-50 p-3 text-red-700">{error}</div>}
+          {!loading && !error && lands.length === 0 && (
+            <div className="text-center py-12">
+              <div className="mx-auto max-w-md">
+                <div className="rounded-lg border border-gray-200 bg-white p-8 shadow-sm">
+                  <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-gray-100">
+                    <svg className="h-6 w-6 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                    </svg>
+                  </div>
+                  <h3 className="mt-4 text-lg font-medium text-gray-900">No Active Lands</h3>
+                  <p className="mt-2 text-sm text-gray-600">
+                    You don't have any active lands available to add to transfer.
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {lands.map((l) => (
+              <button key={l._id} onClick={() => setSelected(l)} className="text-left">
+                <Card>
+                  <h4 className="text-md font-semibold text-gray-900">Parcel {l.parcelId}</h4>
+                  <p className="text-gray-700">{l.usageType} • {l.sizeSqm} sqm</p>
+                  {l.location?.address && (
+                    <p className="text-gray-600 text-sm">{l.location.address}</p>
+                  )}
+                </Card>
+              </button>
+            ))}
+          </div>
+        </>
+      ) : (
+        <Card>
+          <h4 className="text-md font-semibold text-gray-900">Add To Transfer • Parcel {selected.parcelId}</h4>
+          <div className="text-sm text-gray-700 mb-3">
+            <p>Usage: {selected.usageType} • Size: {selected.sizeSqm} sqm</p>
+            {selected.location?.address && <p>Address: {selected.location.address}</p>}
+          </div>
+          <form
+            onSubmit={async (e) => {
+              e.preventDefault();
+              if (!buyerId.trim()) return;
+              if (!window.confirm(`Confirm adding parcel ${selected.parcelId} to transfer?`)) return;
+              setSubmitting(true);
+              setMessage(null);
+              try {
+                await ownerApi.addToTransfer({
+                  parcelId: selected.parcelId,
+                  sellerCitizenId: user.citizenId,
+                  buyerCitizenId: buyerId.trim(),
+                });
+                setMessage("Added to transfer successfully");
+                setSelected(null);
+                setBuyerId("");
+                await fetchActiveLands();
+              } catch (e: any) {
+                setMessage(e?.response?.data?.message || "Failed to add to transfer");
+              } finally {
+                setSubmitting(false);
+              }
+            }}
+            className="grid grid-cols-1 md:grid-cols-2 gap-4"
+          >
+            <div className="md:col-span-2">
+              <label className="block text-sm font-medium text-gray-700">Buyer Citizen ID</label>
+              <input
+                name="buyerId"
+                value={buyerId}
+                onChange={(e) => setBuyerId(e.target.value)}
+                className="mt-1 w-full rounded-md border-gray-300 focus:border-emerald-600 focus:ring-emerald-600"
+              />
+            </div>
+            <div className="md:col-span-2 flex gap-2">
+              <button
+                disabled={submitting || !buyerId.trim()}
+                className="px-4 py-2 rounded-md bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-50"
+              >
+                {submitting ? "Submitting..." : "Confirm & Add To Transfer"}
+              </button>
+              <button
+                type="button"
+                onClick={() => setSelected(null)}
+                className="px-4 py-2 rounded-md border border-gray-300 hover:bg-gray-50"
+              >
+                Cancel
+              </button>
+            </div>
+          </form>
+        </Card>
+      )}
+    </div>
   );
 };
 
