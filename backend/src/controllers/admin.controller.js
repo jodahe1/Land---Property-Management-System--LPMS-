@@ -203,7 +203,7 @@ export const approvetransfer = async (req, res) => {
       return res.status(404).json({ message: "Land not found for parcel" });
     }
 
-    // Lookup buyer user by citizenId
+    // Lookup buyer user by citizenId (must be set by seller confirmation)
     const buyer = await User.findOne({ citizenId: transfer.buyerCitizenId });
     if (!buyer) {
       return res.status(404).json({ message: "Buyer user not found" });
@@ -266,9 +266,16 @@ export const seeTransfers = async (req, res) => {
     const limit = parseInt(req.query.limit) || 10;
     const skip = (page - 1) * limit;
 
+    const filter = {};
+    if (req.query.onlyAwaitingApproval === 'true') {
+      // awaiting approval: active transfers with selected buyer
+      filter['status'] = 'active';
+      filter['buyerCitizenId'] = { $exists: true, $ne: null };
+    }
+
     const [items, total] = await Promise.all([
-      Transfer.find({}).skip(skip).limit(limit).sort({ createdAt: -1 }),
-      Transfer.countDocuments({}),
+      Transfer.find(filter).skip(skip).limit(limit).sort({ createdAt: -1 }),
+      Transfer.countDocuments(filter),
     ]);
 
     return res.status(200).json({

@@ -395,28 +395,11 @@ export const confirmTransfer = async (req, res) => {
       return res.status(400).json({ message: "Selected buyer has not placed a bid" });
     }
 
-    // Update land ownership
-    const land = await Land.findOne({ parcelId: transfer.parcelId });
-    if (!land) {
-      return res.status(404).json({ message: "Land not found" });
-    }
-
-    // Change owner to the buyer's user record
-    const buyerUser = await User.findOne({ citizenId: buyerCitizenId });
-    if (!buyerUser) {
-      return res.status(404).json({ message: "Buyer user not found" });
-    }
-
-    land.ownerId = buyerUser._id;
-    land.status = "active";
-    await land.save();
-
-    // Close transfer
-    transfer.status = "sold";
+    // Mark selected buyer on the transfer; final ownership change happens by admin approval
     transfer.buyerCitizenId = buyerCitizenId;
     await transfer.save();
 
-    res.status(200).json({ message: "Transfer confirmed successfully" });
+    res.status(200).json({ message: "Buyer confirmed; awaiting admin approval" });
   } catch (error) {
     console.error("Error confirming transfer:", error);
     res.status(500).json({ message: "Error confirming transfer" });
@@ -462,5 +445,31 @@ export const myTransfer = async (req, res) => {
   } catch (error) {
     console.error("Error fetching transfers:", error);
     res.status(500).json({ message: "Error fetching transfers" });
+  }
+};
+
+// List all active transfers (marketplace) with land details
+export const marketTransfers = async (req, res) => {
+  try {
+    const transfers = await Transfer.find({ status: "active" }).sort({ createdAt: -1 });
+    const parcelIds = [...new Set(transfers.map((t) => t.parcelId))];
+    const lands = await Land.find({ parcelId: { $in: parcelIds } });
+    const parcelIdToLand = new Map(lands.map((l) => [l.parcelId, l]));
+
+    const items = transfers.map((t) => ({
+      _id: t._id,
+      parcelId: t.parcelId,
+      status: t.status,
+      sellerCitizenId: t.sellerCitizenId,
+      buyerCitizenId: t.buyerCitizenId,
+      bids: t.bids || [],
+      createdAt: t.createdAt,
+      land: parcelIdToLand.get(t.parcelId) || null,
+    }));
+
+    res.status(200).json(items);
+  } catch (error) {
+    console.error("Error listing market transfers:", error);
+    res.status(500).json({ message: "Error listing market transfers" });
   }
 };

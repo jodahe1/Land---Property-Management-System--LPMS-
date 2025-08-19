@@ -369,41 +369,68 @@ const Transfers = () => {
 };
 
 const ApproveTransfer = () => {
-  const [transferId, setTransferId] = useState("");
+  const [data, setData] = useState<PaginatedResult<Transfer> | null>(null);
+  const [page, setPage] = useState(1);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
-  const [submitting, setSubmitting] = useState(false);
-  const onSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setSubmitting(true);
-    setMessage(null);
+
+  const load = async (p = page) => {
+    setLoading(true);
+    setError(null);
     try {
-      await adminApi.approvetransfer({ transferId: transferId.trim() });
-      setMessage("Transfer approved successfully");
-      setTransferId("");
+      const { data } = await adminApi.awaitingTransfers(p, 12);
+      setData(data);
     } catch (e: any) {
-      setMessage(e?.response?.data?.message || "Approval failed");
+      setError(e?.response?.data?.message || "Failed to load transfers");
     } finally {
-      setSubmitting(false);
+      setLoading(false);
     }
   };
+
+  useEffect(() => { load(1); }, []);
+
   return (
-    <Card>
+    <div className="space-y-4">
       {message && (
-        <div
-          className={`mb-4 rounded-md border p-3 text-sm ${
-            message.toLowerCase().includes("success")
-              ? "border-emerald-200 bg-emerald-50 text-emerald-700"
-              : "border-red-200 bg-red-50 text-red-700"
-          }`}
-        >
-          {message}
+        <div className={`rounded-md border p-3 text-sm ${message.toLowerCase().includes("success") ? "border-emerald-200 bg-emerald-50 text-emerald-700" : "border-red-200 bg-red-50 text-red-700"}`}>{message}</div>
+      )}
+      {loading && <p>Loading...</p>}
+      {error && <div className="rounded-md border border-red-200 bg-red-50 p-3 text-red-700">{error}</div>}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        {data?.items.map((t) => (
+          <Card key={t._id}>
+            <h3 className="text-lg font-semibold text-gray-900">Parcel {t.parcelId}</h3>
+            <p className="text-gray-700">Seller: {t.sellerCitizenId}</p>
+            <p className="text-gray-700">Selected Buyer: {t.buyerCitizenId}</p>
+            <p className="text-gray-600 text-sm">Status: {t.status}</p>
+            <div className="mt-3">
+              <button
+                onClick={async () => {
+                  try {
+                    await adminApi.approvetransfer({ transferId: t._id });
+                    setMessage("Transfer approved successfully");
+                    load(page);
+                  } catch (e: any) {
+                    setMessage(e?.response?.data?.message || "Approval failed");
+                  }
+                }}
+                className="px-3 py-2 rounded-md border border-emerald-600 text-emerald-700 hover:bg-emerald-50"
+              >
+                Approve
+              </button>
+            </div>
+          </Card>
+        ))}
+      </div>
+      {data && (
+        <div className="flex items-center justify-between">
+          <button disabled={page <= 1} onClick={() => { setPage((p) => p - 1); load(page - 1); }} className="px-3 py-2 rounded-md border">Prev</button>
+          <span className="text-sm text-gray-600">Page {data.currentPage} of {data.totalPages}</span>
+          <button disabled={data.currentPage >= data.totalPages} onClick={() => { setPage((p) => p + 1); load(page + 1); }} className="px-3 py-2 rounded-md border">Next</button>
         </div>
       )}
-      <form onSubmit={onSubmit} className="flex gap-3">
-        <input value={transferId} onChange={(e) => setTransferId(e.target.value)} placeholder="Transfer ID" className="flex-1 rounded-md border-gray-300 focus:border-emerald-600 focus:ring-emerald-600" />
-        <button disabled={submitting} className="px-4 py-2 rounded-md bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-50">{submitting ? "Approving..." : "Approve"}</button>
-      </form>
-    </Card>
+    </div>
   );
 };
 

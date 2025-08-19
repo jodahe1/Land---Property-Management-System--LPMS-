@@ -14,6 +14,7 @@ import {
   seeLands,
   placeBid,
   confirmTransfer,
+  marketTransfers,
 } from "../controllers/owner.controller.js";
 
 const router = express.Router();
@@ -47,6 +48,7 @@ router.post(
 );
 
 router.get("/MyTransfers", authenticate, authorizeRole("owner"), myTransfer);
+router.get("/marketTransfers", authenticate, authorizeRole("owner"), marketTransfers);
 
 // Bidding endpoints
 router.post(

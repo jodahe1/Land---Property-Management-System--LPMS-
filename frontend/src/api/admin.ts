@@ -50,6 +50,11 @@ export const adminApi = {
       `/admin/seeTransfers?page=${page}&limit=${limit}`
     ),
 
+  awaitingTransfers: (page = 1, limit = 20) =>
+    api.get<PaginatedResult<Transfer>>(
+      `/admin/seeTransfers?onlyAwaitingApproval=true&page=${page}&limit=${limit}`
+    ),
+
   seeDisputes: (
     page = 1,
     limit = 10,

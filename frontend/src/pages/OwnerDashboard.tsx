@@ -11,9 +11,9 @@ type TabKey =
   | "addDisputeFromLand"
   | "addLand"
   | "disputes"
-  | "addDispute"
   | "transfers"
-  | "addToTransfer";
+  | "addToTransfer"
+  | "buyLand";
 
 const tabs: { key: TabKey; label: string }[] = [
   { key: "overview", label: "Overview" },
@@ -25,6 +25,7 @@ const tabs: { key: TabKey; label: string }[] = [
   { key: "disputes", label: "My Disputes" },
   { key: "transfers", label: "My Transfers" },
   { key: "addToTransfer", label: "Add To Transfer" },
+  { key: "buyLand", label: "Buy Land" },
 ];
 
 const OwnerDashboard = () => {
@@ -51,6 +52,8 @@ const OwnerDashboard = () => {
         return "My Transfers";
       case "addToTransfer":
         return "Add Land To Transfer";
+      case "buyLand":
+        return "Buy Land";
       default:
         return "Owner Dashboard";
     }
@@ -98,6 +101,7 @@ const OwnerDashboard = () => {
       {active === "disputes" && <MyDisputes />}
       {active === "transfers" && <MyTransfers />}
       {active === "addToTransfer" && <AddToTransfer />}
+      {active === "buyLand" && <BuyLand />}
     </main>
   );
 };
@@ -783,6 +787,7 @@ const MyTransfers = () => {
   const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const user = useAuthStore((s) => s.user)!;
 
   const fetchData = async (p = page) => {
     setLoading(true);
@@ -812,6 +817,32 @@ const MyTransfers = () => {
             <p className="text-gray-700">Seller: {t.sellerCitizenId}</p>
             <p className="text-gray-700">Buyer: {t.buyerCitizenId}</p>
             <p className="text-gray-600 text-sm">Status: {t.status || "active"}</p>
+            {t.bids && t.bids.length > 0 && (
+              <div className="mt-3 border-t pt-2">
+                <p className="text-sm font-medium text-gray-900">Bids</p>
+                <ul className="text-sm text-gray-700 space-y-1 mt-1">
+                  {t.bids.map((b, idx) => (
+                    <li key={idx} className="flex items-center justify-between">
+                      <span>Buyer: {b.buyerCitizenId}</span>
+                      <span>Amount: {b.amount}</span>
+                      {user.citizenId === t.sellerCitizenId && t.status === "active" && (
+                        <button
+                          onClick={async () => {
+                            try {
+                              await ownerApi.confirmTransfer(t._id, b.buyerCitizenId);
+                              fetchData(page);
+                            } catch (e: any) {}
+                          }}
+                          className="ml-2 px-2 py-1 rounded-md border border-emerald-600 text-emerald-700 hover:bg-emerald-50"
+                        >
+                          Confirm
+                        </button>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
             <div className="mt-3">
               <button
                 onClick={async () => {
@@ -845,7 +876,7 @@ const AddToTransfer = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [selected, setSelected] = useState<Land | null>(null);
-  const [buyerId, setBuyerId] = useState("");
+  const [confirming, setConfirming] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
 
@@ -935,19 +966,16 @@ const AddToTransfer = () => {
           <form
             onSubmit={async (e) => {
               e.preventDefault();
-              if (!buyerId.trim()) return;
-              if (!window.confirm(`Confirm adding parcel ${selected.parcelId} to transfer?`)) return;
+              if (!window.confirm(`Confirm making parcel ${selected.parcelId} available for transfer?`)) return;
               setSubmitting(true);
               setMessage(null);
               try {
                 await ownerApi.addToTransfer({
                   parcelId: selected.parcelId,
                   sellerCitizenId: user.citizenId,
-                  buyerCitizenId: buyerId.trim(),
                 });
                 setMessage("Added to transfer successfully");
                 setSelected(null);
-                setBuyerId("");
                 await fetchActiveLands();
               } catch (e: any) {
                 setMessage(e?.response?.data?.message || "Failed to add to transfer");
@@ -957,21 +985,12 @@ const AddToTransfer = () => {
             }}
             className="grid grid-cols-1 md:grid-cols-2 gap-4"
           >
-            <div className="md:col-span-2">
-              <label className="block text-sm font-medium text-gray-700">Buyer Citizen ID</label>
-              <input
-                name="buyerId"
-                value={buyerId}
-                onChange={(e) => setBuyerId(e.target.value)}
-                className="mt-1 w-full rounded-md border-gray-300 focus:border-emerald-600 focus:ring-emerald-600"
-              />
-            </div>
             <div className="md:col-span-2 flex gap-2">
               <button
-                disabled={submitting || !buyerId.trim()}
+                disabled={submitting}
                 className="px-4 py-2 rounded-md bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-50"
               >
-                {submitting ? "Submitting..." : "Confirm & Add To Transfer"}
+                {submitting ? "Submitting..." : "Confirm & Make Available"}
               </button>
               <button
                 type="button"
@@ -991,3 +1010,96 @@ const AddToTransfer = () => {
 export default OwnerDashboard;
 
 
+
+const BuyLand = () => {
+  const user = useAuthStore((s) => s.user)!;
+  const [items, setItems] = useState<any[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [bidAmount, setBidAmount] = useState<Record<string, string>>({});
+
+  const fetchMarket = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const { data } = await ownerApi.marketTransfers();
+      // hide own listings
+      setItems((data || []).filter((d: any) => d.sellerCitizenId !== user.citizenId));
+    } catch (e: any) {
+      setError(e?.response?.data?.message || "Failed to load market");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchMarket();
+  }, []);
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <button onClick={fetchMarket} className="px-3 py-2 rounded-md border border-gray-300 hover:bg-gray-50">Refresh</button>
+      </div>
+      {loading && <p>Loading...</p>}
+      {error && <div className="rounded-md border border-red-200 bg-red-50 p-3 text-red-700">{error}</div>}
+      {!loading && !error && items.length === 0 && (
+        <div className="text-center py-12">
+          <div className="mx-auto max-w-md">
+            <div className="rounded-lg border border-gray-200 bg-white p-8 shadow-sm">
+              <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-gray-100">
+                <svg className="h-6 w-6 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                </svg>
+              </div>
+              <h3 className="mt-4 text-lg font-medium text-gray-900">No Lands Available</h3>
+              <p className="mt-2 text-sm text-gray-600">
+                There are no active transfers at the moment.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        {items.map((it) => (
+          <Card key={it._id}>
+            <h4 className="text-md font-semibold text-gray-900">Parcel {it.parcelId}</h4>
+            {it.land && (
+              <>
+                <p className="text-gray-700">{it.land.usageType} • {it.land.sizeSqm} sqm</p>
+                {it.land.location?.address && <p className="text-gray-600 text-sm">{it.land.location.address}</p>}
+              </>
+            )}
+            <p className="text-gray-600 text-sm mt-1">Seller: {it.sellerCitizenId}</p>
+            {it.bids && it.bids.length > 0 && (
+              <p className="text-gray-600 text-sm">Bids: {it.bids.length}</p>
+            )}
+            <div className="mt-3 grid grid-cols-1 gap-2">
+              <input
+                placeholder="Your bid amount"
+                value={bidAmount[it._id] || ""}
+                onChange={(e) => setBidAmount((prev) => ({ ...prev, [it._id]: e.target.value }))}
+                type="number"
+                className="w-full rounded-md border-gray-300 focus:border-emerald-600 focus:ring-emerald-600"
+              />
+              <button
+                onClick={async () => {
+                  const amount = Number(bidAmount[it._id]);
+                  if (!amount || amount <= 0) return;
+                  try {
+                    await ownerApi.placeBid(it._id, amount);
+                    setBidAmount((prev) => ({ ...prev, [it._id]: "" }));
+                    fetchMarket();
+                  } catch (e) {}
+                }}
+                className="px-3 py-2 rounded-md border border-emerald-600 text-emerald-700 hover:bg-emerald-50"
+              >
+                Place Bid
+              </button>
+            </div>
+          </Card>
+        ))}
+      </div>
+    </div>
+  );
+};

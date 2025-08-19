@@ -37,10 +37,11 @@ export type Transfer = {
   _id: string;
   parcelId: string;
   sellerCitizenId: string;
-  buyerCitizenId: string;
+  buyerCitizenId?: string;
   status?: string;
   adminApproved?: boolean;
   createdAt?: string;
+  bids?: { buyerCitizenId: string; amount: number; createdAt?: string }[];
 };
 
 export const ownerApi = {
@@ -79,7 +80,6 @@ export const ownerApi = {
   addToTransfer: (payload: {
     parcelId: string;
     sellerCitizenId: string;
-    buyerCitizenId: string;
   }) => api.post<Transfer>("/owner/addToTransfer", payload),
 
   cancelTransfer: (transferId: string) =>
@@ -89,6 +89,13 @@ export const ownerApi = {
     api.get<PaginatedResult<Transfer>>(
       `/owner/MyTransfers?page=${page}&limit=${limit}`
     ),
+
+  // Marketplace
+  marketTransfers: () => api.get<any[]>(`/owner/marketTransfers`),
+  placeBid: (transferId: string, amount: number) =>
+    api.post(`/owner/placeBid/${transferId}`, { amount }),
+  confirmTransfer: (transferId: string, buyerCitizenId: string) =>
+    api.post(`/owner/confirmTransfer/${transferId}`, { buyerCitizenId }),
 };
 
 export default ownerApi;
